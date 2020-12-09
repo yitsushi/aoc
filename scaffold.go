@@ -1,63 +1,53 @@
 package aoc
 
 import (
-	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
 	"text/template"
-
-	"github.com/sirupsen/logrus"
 )
 
-type dayTemplate struct {
-	Day  int
-	Root string
-}
+// Scaffold generates a Solution directory structure for a day.
+func Scaffold(templateDir string, outputDir string, variables interface{}) error {
+	ensureDirectory(outputDir)
 
-// Scaffold generates a Solution file directory structure for a day.
-func Scaffold(day int, templateDir, packageRoot string) error {
-	targetDir := fmt.Sprintf("days/day%02d", day)
+	return filepath.Walk(
+		templateDir,
+		func(path string, info os.FileInfo, err error) error {
+			if err != nil {
+				return err
+			}
 
-	ensureDirectory(targetDir)
+			if info.IsDir() {
+				ensureDirectory(path)
 
-	files, err := ioutil.ReadDir(templateDir)
-	if err != nil {
-		return err
-	}
+				return nil
+			}
 
-	tmpl, err := template.ParseGlob(filepath.Join(templateDir, "*.tmpl"))
-	if err != nil {
-		return nil
-	}
+			dir := filepath.Join(
+				outputDir,
+				strings.TrimPrefix(
+					strings.TrimSuffix(path, filepath.Base(path)),
+					templateDir,
+				),
+			)
+			ensureDirectory(dir)
 
-	templateVars := dayTemplate{
-		Day:  day,
-		Root: packageRoot,
-	}
+			targetFile := strings.TrimSuffix(filepath.Join(dir, filepath.Base(path)), ".tmpl")
 
-	for _, file := range files {
-		if !strings.HasSuffix(file.Name(), ".tmpl") {
-			continue
-		}
+			f, err := os.Create(targetFile)
+			if err != nil {
+				return err
+			}
 
-		targetFile := strings.TrimSuffix(filepath.Join(targetDir, file.Name()), ".tmpl")
+			defer f.Close()
 
-		f, err := os.Create(targetFile)
-		if err != nil {
-			logrus.Errorf("Skip %s because: %s", targetFile, err.Error())
+			tmpl, err := template.ParseFiles(path)
+			if err != nil {
+				return err
+			}
 
-			continue
-		}
-
-		defer f.Close()
-
-		err = tmpl.ExecuteTemplate(f, file.Name(), templateVars)
-		if err != nil {
-			return err
-		}
-	}
-
-	return nil
+			return tmpl.Execute(f, variables)
+		},
+	)
 }
