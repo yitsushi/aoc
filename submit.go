@@ -19,6 +19,8 @@ const (
 	WrongAnswer = "That's not the right answer;"
 	// WaitMore means you have to wait more.
 	WaitMore = "You gave an answer too recently;"
+	// NoSession means the provided token was not valid.
+	NoSession = "To play, please identify yourself"
 )
 
 func correctOrNot(content string) (bool, error) {
@@ -30,6 +32,13 @@ func correctOrNot(content string) (bool, error) {
 	for _, check := range valid {
 		if strings.Contains(content, check) {
 			return true, nil
+		}
+	}
+
+	if strings.Contains(content, NoSession) {
+		return false, IncorrectAnswer{
+			Hint: NoSession,
+			Wait: "",
 		}
 	}
 
